@@ -27,32 +27,28 @@ std::string generateVideoFilename() {
 
 
 int main() {
+    // Define rtsp camera
     const std::string rtsp_url = "rtsp://192.168.0.100/cam0_0";
     cv::VideoCapture cap(rtsp_url);
-
     bool camera_opened = false;
-
-    while (!camera_opened) {
-        cap.open(rtsp_url);
-        if (cap.isOpened()) {
-            camera_opened = true;
-        } else {
-            std::cerr << "Error: Could not open the RTSP camera stream. Retrying in 5 seconds..." << std::endl;
-            std::this_thread::sleep_for(std::chrono::seconds(5));
-        }
-    }
-
-    cv::namedWindow("RTSP Camera Feed", cv::WINDOW_NORMAL);
 
     // Define frame buffers to store frames for 2.5 seconds each
     const int buffer_size = 25 * 2.5; // Assuming 25 FPS
     std::vector<cv::Mat> frame_buffer_before;
     std::vector<cv::Mat> frame_buffer_after;
 
-    frame_buffer_before.reserve(buffer_size);
-    frame_buffer_after.reserve(buffer_size);
-
     bool buffer_switched = false;
+
+    while (!camera_opened) {
+        cap.open(rtsp_url);
+        if (cap.isOpened()) {
+            camera_opened = true;
+        } else {
+            std::cerr << "Error: Could not open the RTSP camera stream. Retrying..." << std::endl;
+        }
+    }
+
+    cv::namedWindow("RTSP Camera Feed", cv::WINDOW_NORMAL);
 
     while (true) {
         cv::Mat frame;
@@ -97,23 +93,17 @@ int main() {
             std::string video_filename = generateVideoFilename();
 
             // Define video codec and compression parameters
-            //int fourcc = cv::VideoWriter::fourcc('H', '2', '6', '4');  // Use h264 codec
-            int fourcc = cv::VideoWriter::fourcc('a', 'v', 'c', '1');  // Use avc1 codec
+            int fourcc = cv::VideoWriter::fourcc('a', 'v', 'c', '1');  // Use avc1 codec, which is H.264
             cv::VideoWriter writer(video_filename, fourcc, 25, frame.size());
-
-            // Set video compression parameters (adjust the values as needed)
-            writer.set(cv::VIDEOWRITER_PROP_QUALITY, 10);  // Lower values reduce quality/compression
 
             // Write frames to the video
             for (const auto& frame : concatenated_frames) {
                 writer.write(frame);
             }
 
-            // Copy frame_buffer_after to frame_buffer_before
+            // Copy frame_buffer_after to frame_buffer_before, clear and reset the buffers
             frame_buffer_before.clear();
             frame_buffer_before = frame_buffer_after;
-
-            // Clear frame_buffer_after
             frame_buffer_after.clear();
             buffer_switched = false;
 
